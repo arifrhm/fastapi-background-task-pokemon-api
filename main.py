@@ -3,7 +3,7 @@ from tortoise import fields, models
 from tortoise.contrib.fastapi import register_tortoise
 import time
 from datetime import datetime
-import aiohttp
+import httpx
 import asyncio
 import json
 
@@ -52,27 +52,27 @@ async def process_task(task_id: str):
     pokemon_data = []
     
     try:
-        async with aiohttp.ClientSession() as session:
+        async with httpx.AsyncClient() as client:
             for number in range(1, total_pokemon + 1):
                 try:
                     pokemon_url = f'https://pokeapi.co/api/v2/pokemon/{number}'
-                    async with session.get(pokemon_url) as resp:
-                        if resp.status == 200:
-                            pokemon = await resp.json()
-                            pokemon_result = {
-                                "id": pokemon["id"],
-                                "name": pokemon["name"],
-                                "types": [
-                                    t["type"]["name"] 
-                                    for t in pokemon["types"]
-                                ]
-                            }
-                            print(pokemon_result)
-                            pokemon_data.append(pokemon_result)
-                        else:
-                            raise Exception(
-                                f"Failed to fetch Pokemon {number}"
-                            )
+                    resp = await client.get(pokemon_url)
+                    if resp.status_code == 200:
+                        pokemon = resp.json()
+                        pokemon_result = {
+                            "id": pokemon["id"],
+                            "name": pokemon["name"],
+                            "types": [
+                                t["type"]["name"] 
+                                for t in pokemon["types"]
+                            ]
+                        }
+                        print(pokemon_result)
+                        pokemon_data.append(pokemon_result)
+                    else:
+                        raise Exception(
+                            f"Failed to fetch Pokemon {number}"
+                        )
                             
                     # Update progress
                     progress = (number / total_pokemon) * 100
