@@ -12,6 +12,7 @@ app = FastAPI()
 
 class Task(models.Model):
     """Task model for storing task information."""
+
     task_id = fields.CharField(max_length=50, pk=True)
     status = fields.CharField(max_length=20, default="processing")
     progress = fields.FloatField(default=0)
@@ -20,7 +21,7 @@ class Task(models.Model):
     started_at = fields.DatetimeField(auto_now_add=True)
     completed_at = fields.DatetimeField(null=True)
     error = fields.TextField(null=True)
-    result_data = fields.TextField(null=True)  # Store Pokemon data as JSON string
+    result_data = fields.TextField(null=True)  # JSON string
 
     class Meta:
         table = "tasks"
@@ -36,7 +37,7 @@ class Task(models.Model):
     def result(self, value):
         """Set the result data as a JSON string."""
         if value is not None:
-            self.result_data = orjson.dumps(value).decode('utf-8')
+            self.result_data = orjson.dumps(value).decode("utf-8")
         else:
             self.result_data = None
 
@@ -50,12 +51,12 @@ async def process_task(task_id: str):
     """Process Pokemon data from PokeAPI."""
     total_pokemon = 150
     pokemon_data = []
-    
+
     try:
         async with httpx.AsyncClient() as client:
             for number in range(1, total_pokemon + 1):
                 try:
-                    pokemon_url = f'https://pokeapi.co/api/v2/pokemon/{number}'
+                    pokemon_url = f"https://pokeapi.co/api/v2/pokemon/{number}"
                     resp = await client.get(pokemon_url)
                     if resp.status_code == 200:
                         pokemon = resp.json()
@@ -63,17 +64,14 @@ async def process_task(task_id: str):
                             "id": pokemon["id"],
                             "name": pokemon["name"],
                             "types": [
-                                t["type"]["name"] 
-                                for t in pokemon["types"]
-                            ]
+                                t["type"]["name"] for t in pokemon["types"]
+                            ],
                         }
                         print(pokemon_result)
                         pokemon_data.append(pokemon_result)
                     else:
-                        raise Exception(
-                            f"Failed to fetch Pokemon {number}"
-                        )
-                            
+                        raise Exception(f"Failed to fetch Pokemon {number}")
+
                     # Update progress
                     progress = (number / total_pokemon) * 100
                     await Task.filter(task_id=task_id).update(
@@ -81,31 +79,29 @@ async def process_task(task_id: str):
                         current_step=number,
                         total_steps=total_pokemon,
                     )
-                    
+
                     # Small delay to prevent rate limiting
                     await asyncio.sleep(0.1)
-                    
+
                 except Exception as e:
                     await Task.filter(task_id=task_id).update(
                         status="failed",
                         error=f"Error processing Pokemon {number}: {str(e)}",
-                        completed_at=datetime.now()
+                        completed_at=datetime.now(),
                     )
                     raise
-                    
+
         # Task completed successfully
         await Task.filter(task_id=task_id).update(
             status="completed",
             progress=100,
             completed_at=datetime.now(),
-            result_data=orjson.dumps(pokemon_data).decode('utf-8')
+            result_data=orjson.dumps(pokemon_data).decode("utf-8"),
         )
-        
+
     except Exception as e:
         await Task.filter(task_id=task_id).update(
-            status="failed",
-            error=str(e),
-            completed_at=datetime.now()
+            status="failed", error=str(e), completed_at=datetime.now()
         )
         raise
 
@@ -130,7 +126,7 @@ async def process_request(background_tasks: BackgroundTasks):
         raise HTTPException(
             status_code=429,
             detail="Maximum number of concurrent tasks (10) reached. "
-                   "Please try again later."
+            "Please try again later.",
         )
 
     task_id = f"task_{int(time.time())}"
@@ -157,10 +153,10 @@ async def get_task_status(task_id: str):
         "current_step": task.current_step,
         "total_steps": task.total_steps,
         "started_at": task.started_at.isoformat(),
-        "completed_at": task.completed_at.isoformat() 
+        "completed_at": task.completed_at.isoformat()
         if task.completed_at else None,
         "error": task.error,
-        "result": task.result if task.status == "completed" else None
+        "result": task.result if task.status == "completed" else None,
     }
 
 
@@ -168,10 +164,7 @@ async def get_task_status(task_id: str):
 async def list_tasks():
     """Get a list of all tasks with their IDs and statuses."""
     tasks = await Task.all()
-    return [
-        {"task_id": task.task_id, "status": task.status}
-        for task in tasks
-    ]
+    return [{"task_id": task.task_id, "status": task.status} for task in tasks]
 
 
 @app.get("/queue/status")
@@ -181,7 +174,7 @@ async def queue_status():
     return {
         "active_tasks": active_tasks,
         "max_concurrent_tasks": 10,
-        "available_slots": 10 - active_tasks
+        "available_slots": 10 - active_tasks,
     }
 
 
