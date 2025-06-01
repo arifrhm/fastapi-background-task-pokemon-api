@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import httpx
 import asyncio
-import json
+import orjson
 
 app = FastAPI()
 
@@ -29,14 +29,14 @@ class Task(models.Model):
     def result(self):
         """Get the result data as a Python object."""
         if self.result_data:
-            return json.loads(self.result_data)
+            return orjson.loads(self.result_data)
         return None
 
     @result.setter
     def result(self, value):
         """Set the result data as a JSON string."""
         if value is not None:
-            self.result_data = json.dumps(value)
+            self.result_data = orjson.dumps(value).decode('utf-8')
         else:
             self.result_data = None
 
@@ -98,7 +98,7 @@ async def process_task(task_id: str):
             status="completed",
             progress=100,
             completed_at=datetime.now(),
-            result_data=json.dumps(pokemon_data)
+            result_data=orjson.dumps(pokemon_data).decode('utf-8')
         )
         
     except Exception as e:
